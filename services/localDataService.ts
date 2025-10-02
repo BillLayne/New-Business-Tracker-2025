@@ -55,7 +55,7 @@ export const localDataService = {
   },
 
   addPolicy: async (
-    policyDetails: Omit<Policy, 'id' | 'status' | 'requirements'>,
+    policyDetails: Omit<Policy, 'id' | 'status' | 'requirements' | 'communications'>,
     requirementsToAdd: Omit<Requirement, 'id' | 'file'>[]
   ): Promise<Policy> => {
     const policies = getPoliciesFromStorage();
@@ -70,6 +70,7 @@ export const localDataService = {
       ...policyDetails,
       status: newRequirements.length > 0 ? PolicyStatus.PENDING_REQUIREMENTS : PolicyStatus.COMPLETE,
       requirements: newRequirements,
+      communications: [],
     };
     
     // Recalculate to archive immediately if no requirements were added.

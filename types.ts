@@ -30,6 +30,12 @@ export enum PolicyStatus {
     ARCHIVED = 'Archived',
 }
 
+export interface Communication {
+  id: string;
+  timestamp: string; // ISO string
+  note: string;
+}
+
 export interface Requirement {
   id: string;
   name: string;
@@ -52,4 +58,5 @@ export interface Policy {
   effectiveDate: string; // YYYY-MM-DD
   status: PolicyStatus;
   requirements: Requirement[];
+  communications?: Communication[];
 }

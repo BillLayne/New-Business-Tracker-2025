@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import type { Policy } from '../types';
 import { RequirementStatus, PolicyStatus } from '../types';
-import { StatusIcon, EmailIcon, PhoneIcon, SignatureIcon } from './icons/StatusIcons';
+import { StatusIcon, EmailIcon, PhoneIcon, SignatureIcon, CameraIcon } from './icons/StatusIcons';
 
 interface PolicyCardProps {
   policy: Policy;
@@ -138,6 +138,10 @@ export const PolicyCard: React.FC<PolicyCardProps> = ({ policy, onSelect }) => {
       </div>
        <div className="border-t border-gray-200 bg-gray-50 px-5 py-3 mt-auto">
           <div className="flex items-center justify-end space-x-4 text-sm text-gray-600">
+            <a href="https://photo-upload-portal.netlify.app/agency-tool.html" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} title="Send Photo Request" className="flex items-center space-x-1.5 hover:text-blue-600 transition-colors duration-200">
+              <CameraIcon className="w-4 h-4" />
+              <span>Photo</span>
+            </a>
             <a href="https://app.hellosign.com/" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} title="Send with Dropbox Sign" className="flex items-center space-x-1.5 hover:text-blue-600 transition-colors duration-200">
               <SignatureIcon className="w-4 h-4" />
               <span>Sign</span>

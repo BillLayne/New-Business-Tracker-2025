@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { Policy, Requirement } from '../types';
 import { RequirementStatus, PolicyStatus } from '../types';
-import { StatusIcon, PencilIcon, TrashIcon, EmailIcon, PhoneIcon, ArchiveBoxIcon, ExternalLinkIcon, SignatureIcon } from './icons/StatusIcons';
+import { StatusIcon, PencilIcon, TrashIcon, EmailIcon, PhoneIcon, ArchiveBoxIcon, ExternalLinkIcon, SignatureIcon, CameraIcon } from './icons/StatusIcons';
 import { localDataService } from '../services/localDataService';
 import { geminiService } from '../services/geminiService';
 
@@ -20,24 +20,64 @@ export const PolicyDetail: React.FC<PolicyDetailProps> = ({ policy, onBack, onUp
   const [editablePolicy, setEditablePolicy] = useState(policy);
   const [gmailButtonText, setGmailButtonText] = useState('Open in Gmail & Copy');
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [newNote, setNewNote] = useState('');
 
   useEffect(() => {
+    setEditablePolicy(policy);
     setConfirmingDelete(false);
   }, [policy]);
   
   const handleStatusChange = async (requirementId: string, newStatus: RequirementStatus) => {
-    const updatedRequirements = editablePolicy.requirements.map(req =>
+    const updatedRequirements = policy.requirements.map(req =>
       req.id === requirementId ? { ...req, status: newStatus } : req
     );
-    const updatedPolicy = { ...editablePolicy, requirements: updatedRequirements };
+    const updatedPolicy = { ...policy, requirements: updatedRequirements };
     
     try {
         const savedPolicy = await localDataService.updatePolicy(updatedPolicy);
-        setEditablePolicy(savedPolicy);
         onUpdate(savedPolicy);
     } catch(error) {
         console.error("Failed to update policy:", error);
         alert("Failed to update the requirement status.");
+    }
+  };
+
+  const handleAddNote = async () => {
+    if (!newNote.trim()) return;
+
+    const newCommunication = {
+      id: `comm-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: new Date().toISOString(),
+      note: newNote.trim(),
+    };
+
+    const updatedCommunications = [...(policy.communications || []), newCommunication];
+    const updatedPolicy = { ...policy, communications: updatedCommunications };
+    
+    try {
+        const savedPolicy = await localDataService.updatePolicy(updatedPolicy);
+        onUpdate(savedPolicy);
+        setNewNote('');
+    } catch(error) {
+        console.error("Failed to add note:", error);
+        alert("Failed to add the communication note.");
+    }
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    if (!window.confirm("Are you sure you want to delete this note?")) {
+        return;
+    }
+
+    const updatedCommunications = (policy.communications || []).filter(comm => comm.id !== noteId);
+    const updatedPolicy = { ...policy, communications: updatedCommunications };
+
+    try {
+        const savedPolicy = await localDataService.updatePolicy(updatedPolicy);
+        onUpdate(savedPolicy);
+    } catch(error) {
+        console.error("Failed to delete note:", error);
+        alert("Failed to delete the communication note.");
     }
   };
 
@@ -208,6 +248,15 @@ export const PolicyDetail: React.FC<PolicyDetailProps> = ({ policy, onBack, onUp
             ) : (
                 <div className="flex items-center space-x-2">
                     <a
+                      href="https://photo-upload-portal.netlify.app/agency-tool.html"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center bg-green-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-green-700 transition-colors duration-300 text-sm"
+                    >
+                      <CameraIcon className="w-4 h-4 mr-1.5"/>
+                      Photo Request
+                    </a>
+                    <a
                       href="https://app.hellosign.com/"
                       target="_blank"
                       rel="noopener noreferrer"
@@ -275,6 +324,53 @@ export const PolicyDetail: React.FC<PolicyDetailProps> = ({ policy, onBack, onUp
            {currentPolicyState.requirements.length === 0 && (
             <li className="text-center p-4 text-gray-500 bg-gray-50 rounded-md">
               No underwriting requirements have been added for this policy.
+            </li>
+          )}
+        </ul>
+      </div>
+
+      <div className="border-t border-gray-200 pt-6 mt-6">
+        <h3 className="text-xl font-semibold text-gray-700 mb-4">Communication Log</h3>
+        <div className="mb-4">
+          <textarea
+            rows={3}
+            className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2"
+            value={newNote}
+            onChange={(e) => setNewNote(e.target.value)}
+            placeholder="Add a note about a call, email, or other communication..."
+            disabled={isEditing || currentPolicyState.status === PolicyStatus.ARCHIVED}
+          />
+          <button
+            onClick={handleAddNote}
+            disabled={!newNote.trim() || isEditing || currentPolicyState.status === PolicyStatus.ARCHIVED}
+            className="mt-2 bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-indigo-700 transition-colors duration-300 disabled:bg-indigo-300 disabled:cursor-not-allowed"
+          >
+            Add Note
+          </button>
+        </div>
+        <ul className="space-y-3 max-h-60 overflow-y-auto pr-2">
+          {currentPolicyState.communications && currentPolicyState.communications.length > 0 ? (
+            [...currentPolicyState.communications].reverse().map(comm => (
+              <li key={comm.id} className="p-3 bg-gray-50 rounded-md border border-gray-200 flex justify-between items-start">
+                <div>
+                  <p className="text-xs text-gray-500 font-medium">
+                    {new Date(comm.timestamp).toLocaleString()}
+                  </p>
+                  <p className="text-sm text-gray-800 whitespace-pre-wrap">{comm.note}</p>
+                </div>
+                <button 
+                  onClick={() => handleDeleteNote(comm.id)}
+                  className="text-gray-400 hover:text-red-600 ml-4 p-1 disabled:text-gray-300"
+                  disabled={isEditing || currentPolicyState.status === PolicyStatus.ARCHIVED}
+                  title="Delete note"
+                >
+                  <TrashIcon className="w-4 h-4" />
+                </button>
+              </li>
+            ))
+          ) : (
+            <li className="text-center p-4 text-gray-500 bg-gray-50 rounded-md">
+              No communication notes have been added.
             </li>
           )}
         </ul>
