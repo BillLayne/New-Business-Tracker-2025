@@ -18,6 +18,7 @@ export const AddPolicyModal: React.FC<AddPolicyModalProps> = ({ isOpen, onClose,
   const [carrier, setCarrier] = useState<CarrierName>(CARRIERS[0]);
   const [policyType, setPolicyType] = useState<PolicyType>(POLICY_TYPES[0]);
   const [effectiveDate, setEffectiveDate] = useState(new Date().toISOString().split('T')[0]);
+  const [followUpDate, setFollowUpDate] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedReqs, setSelectedReqs] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
@@ -46,6 +47,7 @@ export const AddPolicyModal: React.FC<AddPolicyModalProps> = ({ isOpen, onClose,
     setCarrier(CARRIERS[0]);
     setPolicyType(POLICY_TYPES[0]);
     setEffectiveDate(new Date().toISOString().split('T')[0]);
+    setFollowUpDate('');
     setSelectedReqs(new Set());
     setError(null);
     setCustomReqInput('');
@@ -89,7 +91,7 @@ export const AddPolicyModal: React.FC<AddPolicyModalProps> = ({ isOpen, onClose,
     setIsSubmitting(true);
     setError(null);
 
-    const policyDetails = { clientName, clientEmail, clientPhone, policyNumber, carrier, policyType, effectiveDate };
+    const policyDetails = { clientName, clientEmail, clientPhone, policyNumber, carrier, policyType, effectiveDate, followUpDate };
     
     const selectedFullReqs = availableRequirements
       .filter(req => selectedReqs.has(req.name))
@@ -164,6 +166,10 @@ export const AddPolicyModal: React.FC<AddPolicyModalProps> = ({ isOpen, onClose,
             <div>
               <label htmlFor="effectiveDate" className="block text-sm font-medium text-gray-700">Effective Date</label>
               <input type="date" id="effectiveDate" value={effectiveDate} onChange={(e) => setEffectiveDate(e.target.value)} required className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"/>
+            </div>
+            <div>
+              <label htmlFor="followUpDate" className="block text-sm font-medium text-gray-700">Follow-up Date (Optional)</label>
+              <input type="date" id="followUpDate" value={followUpDate} onChange={(e) => setFollowUpDate(e.target.value)} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"/>
             </div>
           </div>
 

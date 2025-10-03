@@ -39,6 +39,32 @@ const formatDateProximity = (dateString: string): { text: string; color: string 
   return { text: `in ${months} mo+`, color: 'bg-green-100 text-green-800' };
 };
 
+const formatFollowUpDateProximity = (dateString?: string): { text: string; color: string } | null => {
+  if (!dateString) return null;
+
+  const followUpDate = new Date(dateString);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); 
+
+  const followUpDateUTC = new Date(Date.UTC(followUpDate.getFullYear(), followUpDate.getMonth(), followUpDate.getDate()));
+
+  const diffTime = followUpDateUTC.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) {
+    return { text: `Due ${-diffDays} day${-diffDays > 1 ? 's' : ''} ago`, color: 'bg-red-200 text-red-900 font-bold' };
+  }
+  if (diffDays === 0) {
+    return { text: 'Due Today', color: 'bg-orange-200 text-orange-900 font-bold' };
+  }
+  if (diffDays <= 7) {
+    return { text: `Due in ${diffDays} day${diffDays > 1 ? 's' : ''}`, color: 'bg-orange-100 text-orange-800 font-semibold' };
+  }
+  
+  // Don't show if it's far out to avoid clutter
+  return null; 
+};
+
 export const PolicyCard: React.FC<PolicyCardProps> = ({ policy, onSelect }) => {
   const totalRequirements = policy.requirements.length;
   const completedRequirements = policy.requirements.filter(
@@ -52,23 +78,27 @@ export const PolicyCard: React.FC<PolicyCardProps> = ({ policy, onSelect }) => {
     ), [policy.requirements]);
     
   const dateProximity = useMemo(() => formatDateProximity(policy.effectiveDate), [policy.effectiveDate]);
+  const followUpProximity = useMemo(() => formatFollowUpDateProximity(policy.followUpDate), [policy.followUpDate]);
 
   const isUrgent = useMemo((): boolean => {
     if (policy.status !== PolicyStatus.PENDING_REQUIREMENTS) {
       return false;
     }
-    const effectiveDate = new Date(policy.effectiveDate);
-    if (isNaN(effectiveDate.getTime())) return false;
-    
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const sevenDaysFromNow = new Date();
-    sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
-    sevenDaysFromNow.setHours(0,0,0,0);
-    
-    return effectiveDate < sevenDaysFromNow;
-  }, [policy.effectiveDate, policy.status]);
+
+    const isDateUrgent = (dateString?: string): boolean => {
+        if (!dateString) return false;
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return false;
+        
+        const sevenDaysFromNow = new Date();
+        sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+        sevenDaysFromNow.setHours(0,0,0,0);
+        
+        return date < sevenDaysFromNow;
+    }
+
+    return isDateUrgent(policy.effectiveDate) || isDateUrgent(policy.followUpDate);
+  }, [policy.effectiveDate, policy.followUpDate, policy.status]);
 
   const getStatusColor = () => {
     switch(policy.status) {
@@ -102,11 +132,18 @@ export const PolicyCard: React.FC<PolicyCardProps> = ({ policy, onSelect }) => {
         </div>
         <div className="mt-4 flex justify-between items-center">
             <p className="text-sm text-gray-500">{policy.policyType} Policy</p>
-            {policy.status !== PolicyStatus.ARCHIVED && (
-              <span className={`text-xs px-2 py-0.5 rounded-full ${dateProximity.color}`}>
-                Eff: {dateProximity.text}
-              </span>
-            )}
+            <div className="flex flex-col items-end gap-1 text-right">
+              {policy.status !== PolicyStatus.ARCHIVED && (
+                <span className={`text-xs px-2 py-0.5 rounded-full ${dateProximity.color}`}>
+                  Eff: {dateProximity.text}
+                </span>
+              )}
+              {policy.status !== PolicyStatus.ARCHIVED && followUpProximity && (
+                <span className={`text-xs px-2 py-0.5 rounded-full ${followUpProximity.color}`}>
+                  Follow-up: {followUpProximity.text}
+                </span>
+              )}
+            </div>
         </div>
         {policy.status !== PolicyStatus.ARCHIVED && (
           <div className="mt-4">

@@ -56,6 +56,7 @@ export interface Policy {
   carrier: CarrierName;
   policyType: PolicyType;
   effectiveDate: string; // YYYY-MM-DD
+  followUpDate?: string; // YYYY-MM-DD
   status: PolicyStatus;
   requirements: Requirement[];
   communications?: Communication[];

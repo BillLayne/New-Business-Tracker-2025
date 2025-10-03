@@ -209,7 +209,23 @@ export const PolicyDetail: React.FC<PolicyDetailProps> = ({ policy, onBack, onUp
              ) : ( ` ${currentPolicyState.policyNumber}` )}
           </p>
           <p className="text-sm text-gray-500">{currentPolicyState.carrier} | Effective: {currentPolicyState.effectiveDate}</p>
-          
+          {isEditing ? (
+            <div className="mt-2">
+              <label htmlFor="followUpDate" className="text-sm font-medium text-gray-600 mr-2">Follow-up Date:</label>
+              <input 
+                type="date" 
+                id="followUpDate"
+                name="followUpDate" 
+                value={editablePolicy.followUpDate || ''} 
+                onChange={handleInputChange} 
+                className="p-1 border-b-2 border-gray-300 focus:border-blue-500 focus:outline-none bg-gray-50 rounded-md"
+              />
+            </div>
+          ) : (
+            currentPolicyState.followUpDate && (
+                <p className="text-sm text-yellow-700 font-semibold mt-1">Follow-up by: {currentPolicyState.followUpDate}</p>
+            )
+          )}
            {/* Contact info */}
           <div className="mt-2 text-sm text-gray-600 space-y-1">
              <div className="flex items-center">
