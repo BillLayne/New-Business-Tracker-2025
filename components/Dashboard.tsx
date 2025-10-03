@@ -2,12 +2,18 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { localDataService } from '../services/localDataService';
 import type { Policy } from '../types';
 import { PolicyStatus, PolicyType } from '../types';
+import type { SaveStatus } from '../App';
 import { PolicyCard } from './PolicyCard';
 import { PolicyDetail } from './PolicyDetail';
 import { AddPolicyModal } from './AddPolicyModal';
+import { ImportConfirmationModal } from './ImportConfirmationModal';
 import { ArchiveBoxIcon } from './icons/StatusIcons';
 
-export const Dashboard: React.FC = () => {
+interface DashboardProps {
+  setSaveStatus: (status: SaveStatus) => void;
+}
+
+export const Dashboard: React.FC<DashboardProps> = ({ setSaveStatus }) => {
   const [policies, setPolicies] = useState<Policy[]>([]);
   const [selectedPolicy, setSelectedPolicy] = useState<Policy | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -17,6 +23,11 @@ export const Dashboard: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState('All');
   const [showArchived, setShowArchived] = useState(false);
   const importFileRef = useRef<HTMLInputElement>(null);
+  const saveStatusTimeoutRef = useRef<number | null>(null);
+
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importFileContent, setImportFileContent] = useState('');
 
   const fetchPolicies = useCallback(async () => {
     const data = await localDataService.getPolicies();
@@ -26,6 +37,19 @@ export const Dashboard: React.FC = () => {
   useEffect(() => {
     fetchPolicies();
   }, [fetchPolicies]);
+
+  const showSaveStatus = useCallback(() => {
+    setSaveStatus('saving');
+    setTimeout(() => {
+        setSaveStatus('saved');
+        if (saveStatusTimeoutRef.current) {
+            clearTimeout(saveStatusTimeoutRef.current);
+        }
+        saveStatusTimeoutRef.current = window.setTimeout(() => {
+            setSaveStatus('idle');
+        }, 2000);
+    }, 300);
+  }, [setSaveStatus]);
 
   const filteredPolicies = useMemo(() => {
     const getSafeDateValue = (dateString: string): number => {
@@ -82,26 +106,42 @@ export const Dashboard: React.FC = () => {
   
   const handlePolicyAdded = () => {
     setIsModalOpen(false);
+    showSaveStatus();
     fetchPolicies();
   };
   
-  const handlePolicyUpdate = useCallback((updatedPolicy: Policy) => {
-    const oldPolicy = policies.find(p => p.id === updatedPolicy.id);
-    if (oldPolicy?.status === PolicyStatus.ARCHIVED && updatedPolicy.status !== PolicyStatus.ARCHIVED) {
-      setShowArchived(false); // Switch to active view when a policy is restored
+  const handlePolicyUpdate = useCallback(async (updatedPolicy: Policy, skipRecalculate = false) => {
+    showSaveStatus();
+    try {
+        const savedPolicy = await localDataService.updatePolicy(updatedPolicy, skipRecalculate);
+        
+        const oldPolicy = policies.find(p => p.id === savedPolicy.id);
+        if (oldPolicy?.status === PolicyStatus.ARCHIVED && savedPolicy.status !== PolicyStatus.ARCHIVED) {
+          setShowArchived(false); // Switch to active view when a policy is restored
+        }
+        
+        if (savedPolicy.status === PolicyStatus.ARCHIVED) {
+          setSelectedPolicy(null); // Go back to list if archived
+        } else {
+          setSelectedPolicy(savedPolicy);
+        }
+        fetchPolicies(); // Refetch all policies to ensure UI is in sync with storage
+    } catch (error) {
+        console.error("Failed to update policy:", error);
+        alert("Failed to save changes. Please try again.");
     }
-    
-    if (updatedPolicy.status === PolicyStatus.ARCHIVED) {
-      setSelectedPolicy(null); // Go back to list if archived
-    } else {
-      setSelectedPolicy(updatedPolicy);
-    }
-    fetchPolicies(); // Refetch all policies to ensure UI is in sync with storage
-  }, [fetchPolicies, policies]);
+  }, [fetchPolicies, policies, showSaveStatus]);
 
-  const handlePolicyDelete = (policyId: string) => {
-    setSelectedPolicy(null);
-    fetchPolicies();
+  const handlePolicyDelete = async (policyId: string) => {
+    showSaveStatus();
+    try {
+        await localDataService.deletePolicy(policyId);
+        setSelectedPolicy(null);
+        fetchPolicies();
+    } catch (error) {
+        console.error("Failed to delete policy:", error);
+        alert("Failed to delete policy. Please try again.");
+    }
   };
   
   const clearFilters = () => {
@@ -114,34 +154,47 @@ export const Dashboard: React.FC = () => {
     await localDataService.exportData();
   };
 
-  const handleImportClick = () => {
+  const handleImportButtonClick = () => {
     importFileRef.current?.click();
   };
   
-  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImportFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
-
-    if (!window.confirm("Are you sure you want to import this file? This will overwrite all your current data.")) {
-        event.target.value = ''; // Reset file input
-        return;
-    }
+    if (!file) {
+      event.target.value = '';
+      return;
+    };
 
     const reader = new FileReader();
-    reader.onload = async (e) => {
-      try {
-        const content = e.target?.result as string;
-        await localDataService.importData(content);
-        alert("Data imported successfully!");
-        fetchPolicies(); // Refresh the view
-      } catch (error) {
-        alert("Import failed. Please check if the file is a valid backup file.");
-        console.error(error);
-      } finally {
-        event.target.value = ''; // Reset file input
-      }
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      setImportFile(file);
+      setImportFileContent(content);
+      setIsImportModalOpen(true);
     };
+    reader.onerror = () => {
+      alert("Error reading file.");
+    }
     reader.readAsText(file);
+    event.target.value = ''; 
+  };
+  
+  const handleConfirmImport = async () => {
+    if (!importFileContent) return;
+
+    setIsImportModalOpen(false);
+    showSaveStatus();
+
+    try {
+      await localDataService.importData(importFileContent);
+      fetchPolicies();
+    } catch (error) {
+      alert(`Import failed. Please check if the file is a valid backup file. Error: ${error instanceof Error ? error.message : String(error)}`);
+      console.error(error);
+    } finally {
+      setImportFile(null);
+      setImportFileContent('');
+    }
   };
 
   if (selectedPolicy) {
@@ -167,12 +220,12 @@ export const Dashboard: React.FC = () => {
               Export Data
             </button>
             <button
-              onClick={handleImportClick}
+              onClick={handleImportButtonClick}
               className="bg-purple-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-purple-700 transition-colors duration-300"
             >
               Import Data
             </button>
-            <input type="file" accept=".json" ref={importFileRef} onChange={handleImport} className="hidden" />
+            <input type="file" accept=".json" ref={importFileRef} onChange={handleImportFileSelect} className="hidden" />
             <button
               onClick={() => setShowArchived(!showArchived)}
               className="bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-gray-300 transition-colors duration-300 flex items-center"
@@ -249,6 +302,14 @@ export const Dashboard: React.FC = () => {
             </p>
         </div>
       )}
+
+      <ImportConfirmationModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onConfirm={handleConfirmImport}
+        file={importFile}
+        fileContent={importFileContent}
+      />
 
       <AddPolicyModal 
         isOpen={isModalOpen} 

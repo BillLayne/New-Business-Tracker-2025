@@ -115,7 +115,7 @@ export const PolicyCard: React.FC<PolicyCardProps> = ({ policy, onSelect }) => {
   return (
     <div
       onClick={() => onSelect(policy)}
-      className={`bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 cursor-pointer border-l-4 flex flex-col ${getStatusColor()} ${isUrgent ? 'animate-pulse' : ''} ${policy.status === PolicyStatus.ARCHIVED ? 'opacity-70' : ''}`}
+      className={`${isUrgent ? 'bg-red-50' : 'bg-white'} rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 cursor-pointer border-l-4 flex flex-col ${getStatusColor()} ${policy.status === PolicyStatus.ARCHIVED ? 'opacity-70' : ''}`}
     >
       <div className="p-5 flex-grow">
         <div className="flex justify-between items-start">

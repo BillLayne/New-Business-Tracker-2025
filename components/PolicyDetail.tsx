@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import type { Policy, Requirement } from '../types';
 import { RequirementStatus, PolicyStatus } from '../types';
-import { StatusIcon, PencilIcon, TrashIcon, EmailIcon, PhoneIcon, ArchiveBoxIcon, ExternalLinkIcon, SignatureIcon, CameraIcon } from './icons/StatusIcons';
+import { StatusIcon, PencilIcon, TrashIcon, EmailIcon, PhoneIcon, ArchiveBoxIcon, ExternalLinkIcon, SignatureIcon, CameraIcon, GoogleDriveIcon } from './icons/StatusIcons';
 import { localDataService } from '../services/localDataService';
 import { geminiService } from '../services/geminiService';
 
 interface PolicyDetailProps {
   policy: Policy;
   onBack: () => void;
-  onUpdate: (updatedPolicy: Policy) => void;
+  onUpdate: (updatedPolicy: Policy, skipRecalculate?: boolean) => void;
   onDelete: (policyId: string) => void;
 }
 
@@ -27,22 +27,15 @@ export const PolicyDetail: React.FC<PolicyDetailProps> = ({ policy, onBack, onUp
     setConfirmingDelete(false);
   }, [policy]);
   
-  const handleStatusChange = async (requirementId: string, newStatus: RequirementStatus) => {
+  const handleStatusChange = (requirementId: string, newStatus: RequirementStatus) => {
     const updatedRequirements = policy.requirements.map(req =>
       req.id === requirementId ? { ...req, status: newStatus } : req
     );
     const updatedPolicy = { ...policy, requirements: updatedRequirements };
-    
-    try {
-        const savedPolicy = await localDataService.updatePolicy(updatedPolicy);
-        onUpdate(savedPolicy);
-    } catch(error) {
-        console.error("Failed to update policy:", error);
-        alert("Failed to update the requirement status.");
-    }
+    onUpdate(updatedPolicy);
   };
 
-  const handleAddNote = async () => {
+  const handleAddNote = () => {
     if (!newNote.trim()) return;
 
     const newCommunication = {
@@ -54,31 +47,18 @@ export const PolicyDetail: React.FC<PolicyDetailProps> = ({ policy, onBack, onUp
     const updatedCommunications = [...(policy.communications || []), newCommunication];
     const updatedPolicy = { ...policy, communications: updatedCommunications };
     
-    try {
-        const savedPolicy = await localDataService.updatePolicy(updatedPolicy);
-        onUpdate(savedPolicy);
-        setNewNote('');
-    } catch(error) {
-        console.error("Failed to add note:", error);
-        alert("Failed to add the communication note.");
-    }
+    onUpdate(updatedPolicy);
+    setNewNote('');
   };
 
-  const handleDeleteNote = async (noteId: string) => {
+  const handleDeleteNote = (noteId: string) => {
     if (!window.confirm("Are you sure you want to delete this note?")) {
         return;
     }
 
     const updatedCommunications = (policy.communications || []).filter(comm => comm.id !== noteId);
     const updatedPolicy = { ...policy, communications: updatedCommunications };
-
-    try {
-        const savedPolicy = await localDataService.updatePolicy(updatedPolicy);
-        onUpdate(savedPolicy);
-    } catch(error) {
-        console.error("Failed to delete note:", error);
-        alert("Failed to delete the communication note.");
-    }
+    onUpdate(updatedPolicy);
   };
 
   const handleAskAssistant = async () => {
@@ -95,32 +75,20 @@ export const PolicyDetail: React.FC<PolicyDetailProps> = ({ policy, onBack, onUp
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (confirmingDelete) {
-        try {
-            await localDataService.deletePolicy(policy.id);
-            onDelete(policy.id);
-        } catch(error) {
-            console.error("Failed to delete policy:", error);
-            alert("Failed to delete the policy.");
-        }
+        onDelete(policy.id);
     } else {
         setConfirmingDelete(true);
         setTimeout(() => setConfirmingDelete(false), 4000);
     }
   };
 
-  const handleEditToggle = async () => {
+  const handleEditToggle = () => {
     setConfirmingDelete(false);
     if (isEditing) {
-        try {
-            const savedPolicy = await localDataService.updatePolicy(editablePolicy);
-            onUpdate(savedPolicy);
-            setIsEditing(false);
-        } catch(error) {
-            console.error("Failed to save policy updates:", error);
-            alert("Failed to save your changes.");
-        }
+        onUpdate(editablePolicy);
+        setIsEditing(false);
     } else {
         setEditablePolicy(policy);
         setIsEditing(true);
@@ -132,16 +100,9 @@ export const PolicyDetail: React.FC<PolicyDetailProps> = ({ policy, onBack, onUp
     setEditablePolicy(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleRestore = async () => {
-    // When restoring, we set a logical default status. The service will NOT recalculate this.
+  const handleRestore = () => {
     const restoredPolicy = { ...policy, status: PolicyStatus.PENDING_REQUIREMENTS };
-    try {
-        const savedPolicy = await localDataService.updatePolicy(restoredPolicy, true); // skipRecalculate = true
-        onUpdate(savedPolicy);
-    } catch (error) {
-        console.error("Failed to restore policy:", error);
-        alert("Failed to restore the policy.");
-    }
+    onUpdate(restoredPolicy, true); // skipRecalculate = true
   };
 
   const handleSearchInMatrix = () => {
@@ -164,6 +125,23 @@ export const PolicyDetail: React.FC<PolicyDetailProps> = ({ policy, onBack, onUp
     const baseUrl = 'https://agents.agencymatrix.com/#/customer/search';
     const url = `${baseUrl}?selection=${selection}&query=${encodeURIComponent(query)}`;
     
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleOpenDriveFolder = () => {
+    if (!policy.clientName?.trim()) {
+      alert("Client name is not available to search in Google Drive.");
+      return;
+    }
+    const clientName = policy.clientName.trim();
+    const agencyEmail = 'docs@billlayneinsurance.com';
+    const clientsFolderId = '11O0Cm9gOdgXp_j8OXMO4Pm5tqh18uXd5';
+
+    // This query performs a targeted search for a folder/file with the client's name
+    // *only* inside the specified "Clients" folder.
+    const searchQuery = `parent:${clientsFolderId} title:(${clientName})`;
+
+    const url = `https://drive.google.com/drive/search?q=${encodeURIComponent(searchQuery)}&authuser=${agencyEmail}`;
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
@@ -287,6 +265,13 @@ export const PolicyDetail: React.FC<PolicyDetailProps> = ({ policy, onBack, onUp
                     >
                       <ExternalLinkIcon className="w-4 h-4 mr-1.5"/>
                       Search in Matrix
+                    </button>
+                    <button 
+                      onClick={handleOpenDriveFolder} 
+                      className="flex items-center bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-gray-700 transition-colors duration-300 text-sm"
+                    >
+                      <GoogleDriveIcon className="w-4 h-4 mr-1.5"/>
+                      Client Folder
                     </button>
                     <button 
                     onClick={handleEditToggle} 

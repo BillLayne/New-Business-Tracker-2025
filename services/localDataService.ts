@@ -122,7 +122,15 @@ export const localDataService = {
       if (!Array.isArray(policies)) {
         throw new Error("Imported file is not a valid policy array.");
       }
-      // Basic validation can be expanded here
+      
+      // Additional validation: check if objects look like policies
+      if (policies.length > 0) {
+        const firstItem = policies[0];
+        if (typeof firstItem.id !== 'string' || typeof firstItem.clientName !== 'string' || !Array.isArray(firstItem.requirements)) {
+           throw new Error("Data in file does not match the expected policy structure.");
+        }
+      }
+
       savePoliciesToStorage(policies);
       return Promise.resolve();
     } catch (error) {
