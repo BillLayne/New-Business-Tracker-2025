@@ -194,7 +194,7 @@ export const PolicyDetail: React.FC<PolicyDetailProps> = ({ policy, onBack, onUp
 
   return (
     <div className="bg-white p-6 sm:p-8 rounded-lg shadow-lg max-w-4xl mx-auto">
-      <div className="flex justify-between items-start mb-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between items-start mb-6 gap-4">
         <div>
           <button onClick={onBack} className="text-blue-600 hover:underline mb-4">&larr; Back to List</button>
           <h2 className="text-3xl font-bold text-gray-800">
@@ -227,9 +227,9 @@ export const PolicyDetail: React.FC<PolicyDetailProps> = ({ policy, onBack, onUp
           </div>
         </div>
 
-        <div className="flex flex-col items-end space-y-3">
+        <div className="flex flex-col w-full sm:w-auto items-start sm:items-end space-y-3">
             {currentPolicyState.status === PolicyStatus.ARCHIVED ? (
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-wrap gap-2 justify-start sm:justify-end">
                     <button 
                         onClick={handleRestore} 
                         className="flex items-center bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-blue-700 transition-colors duration-300 text-sm"
@@ -246,7 +246,7 @@ export const PolicyDetail: React.FC<PolicyDetailProps> = ({ policy, onBack, onUp
                     </button>
                 </div>
             ) : (
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-wrap gap-2 justify-start sm:justify-end">
                     <a
                       href="https://photo-upload-portal.netlify.app/agency-tool.html"
                       target="_blank"
