@@ -22,6 +22,9 @@ export const AddPolicyModal: React.FC<AddPolicyModalProps> = ({ isOpen, onClose,
   const [selectedReqs, setSelectedReqs] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
 
+  const [customReqInput, setCustomReqInput] = useState('');
+  const [customReqs, setCustomReqs] = useState<Omit<Requirement, 'id' | 'status' | 'file'>[]>([]);
+
   const availableRequirements = useMemo(() => {
     const specificReqs = ALL_POSSIBLE_REQUIREMENTS[carrier]?.[policyType] || [];
     
@@ -45,6 +48,8 @@ export const AddPolicyModal: React.FC<AddPolicyModalProps> = ({ isOpen, onClose,
     setEffectiveDate(new Date().toISOString().split('T')[0]);
     setSelectedReqs(new Set());
     setError(null);
+    setCustomReqInput('');
+    setCustomReqs([]);
   };
 
   useEffect(() => {
@@ -65,6 +70,20 @@ export const AddPolicyModal: React.FC<AddPolicyModalProps> = ({ isOpen, onClose,
     });
   };
 
+  const handleAddCustomReq = () => {
+    if (customReqInput.trim()) {
+      // Prevent duplicates
+      if (!customReqs.some(req => req.name.toLowerCase() === customReqInput.trim().toLowerCase())) {
+        setCustomReqs([...customReqs, { name: customReqInput.trim(), description: 'Custom requirement' }]);
+      }
+      setCustomReqInput('');
+    }
+  };
+
+  const handleRemoveCustomReq = (reqNameToRemove: string) => {
+    setCustomReqs(customReqs.filter(req => req.name !== reqNameToRemove));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -78,9 +97,16 @@ export const AddPolicyModal: React.FC<AddPolicyModalProps> = ({ isOpen, onClose,
         ...req,
         status: RequirementStatus.OUTSTANDING,
       }));
+    
+    const customFullReqs = customReqs.map(req => ({
+      ...req,
+      status: RequirementStatus.OUTSTANDING,
+    }));
+    
+    const allRequirements = [...selectedFullReqs, ...customFullReqs];
 
     try {
-        await localDataService.addPolicy(policyDetails, selectedFullReqs);
+        await localDataService.addPolicy(policyDetails, allRequirements);
         onPolicyAdded();
     } catch(err) {
         console.error("Failed to add policy:", err);
@@ -165,6 +191,45 @@ export const AddPolicyModal: React.FC<AddPolicyModalProps> = ({ isOpen, onClose,
               </div>
             </div>
           )}
+
+          <div className="mt-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Add Custom Requirements</label>
+            {customReqs.length > 0 && (
+              <div className="space-y-2 mb-3 border border-gray-200 rounded-md p-3 bg-gray-50">
+                {customReqs.map((req, index) => (
+                  <div key={index} className="flex justify-between items-center text-sm p-2 bg-white rounded-md shadow-sm">
+                    <span className="text-gray-800">{req.name}</span>
+                    <button type="button" onClick={() => handleRemoveCustomReq(req.name)} className="text-red-500 hover:text-red-700 font-bold p-1 leading-none text-xl" title="Remove requirement">
+                      &times;
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={customReqInput}
+                onChange={(e) => setCustomReqInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddCustomReq();
+                  }
+                }}
+                placeholder="e.g., Photos of cleaned gutters"
+                className="flex-grow block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              />
+              <button
+                type="button"
+                onClick={handleAddCustomReq}
+                disabled={!customReqInput.trim()}
+                className="bg-green-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-green-700 transition-colors duration-300 disabled:bg-green-300 disabled:cursor-not-allowed"
+              >
+                Add
+              </button>
+            </div>
+          </div>
 
           <div className="mt-8 flex justify-end space-x-3">
             <button type="button" onClick={onClose} className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
